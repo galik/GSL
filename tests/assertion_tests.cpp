@@ -17,7 +17,7 @@
 #include <UnitTest++/UnitTest++.h> 
 #include <gsl/gsl>
 
-using namespace gsl;
+GSL_USING_NAMESPACE_GSL
 
 SUITE(assertion_tests)
 {

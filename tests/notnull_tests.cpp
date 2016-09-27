@@ -18,7 +18,7 @@
 #include <gsl/gsl>
 #include <vector>
 
-using namespace gsl;
+GSL_USING_NAMESPACE_GSL
 
 struct MyBase {};
 struct MyDerived : public MyBase {};

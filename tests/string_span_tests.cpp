@@ -21,8 +21,7 @@
 #include <map>
 
 using namespace std;
-using namespace gsl;
-
+GSL_USING_NAMESPACE_GSL
 
 SUITE(string_span_tests)
 {

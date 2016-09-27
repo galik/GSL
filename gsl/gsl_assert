@@ -22,6 +22,13 @@
 #include <exception>
 #include <stdexcept>
 
+#define GSL_NAMESPACE_BEGIN namespace cpp_core_guidelines { namespace gsl {
+#define GSL_NAMESPACE_END }}
+#define GSL_NAMESPACE_QUALIFIER cpp_core_guidelines::gsl
+#define GSL_USING_NAMESPACE_GSL \
+using namespace cpp_core_guidelines; \
+using namespace cpp_core_guidelines::gsl;
+
 //
 // There are three configuration options for this GSL implementation's behavior
 // when pre/post conditions on the GSL types are violated:
@@ -37,9 +44,6 @@
 
 #define GSL_STRINGIFY_DETAIL(x) #x
 #define GSL_STRINGIFY(x) GSL_STRINGIFY_DETAIL(x)
-
-#define GSL_NAMESPACE_BEGIN namespace cpp_core_guidelines { namespace gsl {
-#define GSL_NAMESPACE_END }}
 
 //
 // GSL.assert: assertions

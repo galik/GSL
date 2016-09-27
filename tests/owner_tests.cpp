@@ -18,7 +18,7 @@
 #include <gsl/gsl>
 #include <functional>
 
-using namespace gsl;
+GSL_USING_NAMESPACE_GSL
 
 SUITE(owner_tests)
 {

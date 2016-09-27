@@ -25,7 +25,7 @@
 #include <vector>
 
 using namespace std;
-using namespace gsl;
+GSL_USING_NAMESPACE_GSL
 
 namespace
 {
