@@ -46,8 +46,7 @@
 
 #endif // _MSC_VER
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
 
 //
 // GSL.owner: ownership pointers
@@ -141,7 +140,7 @@ private:
     not_null<T>& operator-=(size_t) = delete;
 };
 
-} // namespace gsl
+GSL_NAMESPACE_END
 
 namespace std
 {

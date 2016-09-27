@@ -19,6 +19,8 @@
 #ifndef GSL_BYTE_H
 #define GSL_BYTE_H
 
+#include "gsl_assert" // GSL_NAMESPACE...
+
 #ifdef _MSC_VER
 
 #pragma warning(push)
@@ -41,8 +43,8 @@
 
 #endif // _MSC_VER
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
+
 // This is a simple definition for now that allows
 // use of byte within span<> to be standards-compliant
 enum class byte : unsigned char
@@ -140,7 +142,7 @@ inline constexpr byte to_byte() noexcept
     return static_cast<byte>(I);
 }
 
-} // namespace gsl
+GSL_NAMESPACE_END
 
 #ifdef _MSC_VER
 

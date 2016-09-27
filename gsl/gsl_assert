@@ -38,17 +38,21 @@
 #define GSL_STRINGIFY_DETAIL(x) #x
 #define GSL_STRINGIFY(x) GSL_STRINGIFY_DETAIL(x)
 
+#define GSL_NAMESPACE_BEGIN namespace cpp_core_guidelines { namespace gsl {
+#define GSL_NAMESPACE_END }}
+
 //
 // GSL.assert: assertions
 //
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
+
 struct fail_fast : public std::runtime_error
 {
     explicit fail_fast(char const* const message) : std::runtime_error(message) {}
 };
-}
+
+GSL_NAMESPACE_END
 
 #if defined(GSL_THROW_ON_CONTRACT_VIOLATION)
 

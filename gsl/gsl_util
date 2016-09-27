@@ -48,8 +48,8 @@
 
 #endif // _MSC_VER
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
+
 //
 // GSL.util: utilities
 //
@@ -154,7 +154,7 @@ constexpr const T& at(std::initializer_list<T> cont, size_t index)
     return *(cont.begin() + index);
 }
 
-} // namespace gsl
+GSL_NAMESPACE_END
 
 #ifdef _MSC_VER
 

@@ -77,8 +77,7 @@
 
 #endif // GSL_THROW_ON_CONTRACT_VIOLATION
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
 
 /*
 ** begin definitions of index and bounds
@@ -2206,7 +2205,7 @@ general_span_iterator<Span> operator+(typename general_span_iterator<Span>::diff
     return rhs + n;
 }
 
-} // namespace gsl
+GSL_NAMESPACE_END
 
 #ifdef _MSC_VER
 

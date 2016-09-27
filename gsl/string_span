@@ -71,8 +71,8 @@
 
 #endif // GSL_THROW_ON_CONTRACT_VIOLATION
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
+
 //
 // czstring and wzstring
 //
@@ -826,7 +826,8 @@ bool operator>=(const T& one, gsl::basic_string_span<CharT, Extent> other) noexc
     return !(one < other);
 }
 #endif
-} // namespace GSL
+
+GSL_NAMESPACE_END
 
 #ifdef _MSC_VER
 

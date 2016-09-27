@@ -81,8 +81,7 @@
 
 #endif // GSL_THROW_ON_CONTRACT_VIOLATION
 
-namespace gsl
-{
+GSL_NAMESPACE_BEGIN
 
 // [views.constants], constants
 constexpr const std::ptrdiff_t dynamic_extent = -1;
@@ -629,7 +628,7 @@ constexpr ElementType& at(const span<ElementType, Extent>& s, size_t index)
     return s[index];
 }
 
-} // namespace gsl
+GSL_NAMESPACE_END
 
 #ifdef _MSC_VER
 
