@@ -38,6 +38,11 @@
 namespace gsl
 {
 
+/***
+ * Trying to *copy* or *move* a lockable while a read_lockable or write_lockable
+ * owns its `mutex` will cause *deadlock*.
+ */
+
 template<typename CRTP>
 class lockable_base
 {
@@ -66,18 +71,28 @@ public:
 	lockable_base& operator=(lockable_base const& other)
 	{
 		std::unique_lock<mutex_type> lock(other.mtx);
-		this->crtp = other.crtp;
+		copy_assign(other);
 		return *this;
 	}
 
 	lockable_base& operator=(lockable_base&& other)
 	{
 		std::unique_lock<mutex_type> lock(other.mtx);
-		this->crtp = std::move(other.crtp);
+		move_assign(other);
 		return *this;
 	}
 
 protected:
+	void copy_assign(lockable_base const& other)
+	{
+		this->crtp = other.crtp;
+	}
+
+	void move_assign(lockable_base& other)
+	{
+		this->crtp = std::move(other.crtp);
+	}
+
 	mutable mutex_type mtx;
 	CRTP crtp;
 };
@@ -86,10 +101,10 @@ template<typename CRTP>
 class read_lockable
 : public virtual lockable_base<CRTP>
 {
+	using mutex_type = typename lockable_base<CRTP>::mutex_type;
+
 	class readable_lock
 	{
-		using mutex_type = typename lockable_base<CRTP>::mutex_type;
-
 	public:
 		readable_lock(CRTP const& crtp, mutex_type& mtx)
 		: crtp(&crtp), lock(mtx) {}
@@ -136,8 +151,21 @@ public:
 	read_lockable(read_lockable const& other): lockable_base<CRTP>(other) {}
 	read_lockable(read_lockable&& other): lockable_base<CRTP>(std::move(other)) {}
 
-	read_lockable& operator=(read_lockable const& other) { *static_cast<lockable_base<CRTP>*>(this) = other; }
-	read_lockable& operator=(read_lockable&& other) { *static_cast<lockable_base<CRTP>*>(this) = std::move(other); }
+	read_lockable& operator=(read_lockable const& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		lockable_base<CRTP>::copy_assign(other);
+		copy_assign(other);
+		return *this;
+	}
+
+	read_lockable& operator=(read_lockable&& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		lockable_base<CRTP>::move_assign(other);
+		move_assign(other);
+		return *this;
+	}
 
 	readable_lock lock_for_reading() const
 	{
@@ -148,16 +176,20 @@ public:
 	{
 		return readable_lock(lockable_base<CRTP>::crtp, lockable_base<CRTP>::mtx, std::defer_lock);
 	}
+
+protected:
+	void copy_assign(read_lockable const& other) {}
+	void move_assign(read_lockable& other) {}
 };
 
 template<typename CRTP>
 class write_lockable
 : public virtual lockable_base<CRTP>
 {
+	using mutex_type = typename lockable_base<CRTP>::mutex_type;
+
 	class writable_lock
 	{
-		using mutex_type = typename lockable_base<CRTP>::mutex_type;
-
 	public:
 		writable_lock(CRTP& crtp, mutex_type& mtx)
 		: crtp(&crtp), lock(mtx) {}
@@ -189,8 +221,21 @@ public:
 	write_lockable(write_lockable const& other): lockable_base<CRTP>(other) {}
 	write_lockable(write_lockable&& other): lockable_base<CRTP>(std::move(other)) {}
 
-	write_lockable& operator=(write_lockable const& other) { *static_cast<lockable_base<CRTP>*>(this) = other; }
-	write_lockable& operator=(write_lockable&& other) { *static_cast<lockable_base<CRTP>*>(this) = std::move(other); }
+	write_lockable& operator=(write_lockable const& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		lockable_base<CRTP>::copy_assign(other);
+		copy_assign(other);
+		return *this;
+	}
+
+	write_lockable& operator=(write_lockable&& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		lockable_base<CRTP>::move_assign(other);
+		move_assign(other);
+		return *this;
+	}
 
 	writable_lock lock_for_writing()
 	{
@@ -201,6 +246,10 @@ public:
 	{
 		return writable_lock(lockable_base<CRTP>::crtp, lockable_base<CRTP>::mtx, std::defer_lock);
 	}
+
+protected:
+	void copy_assign(write_lockable const& other) {}
+	void move_assign(write_lockable& other) {}
 };
 
 template<typename CRTP>
@@ -208,6 +257,8 @@ class lockable
 : public read_lockable<CRTP>
 , public write_lockable<CRTP>
 {
+	using mutex_type = typename lockable_base<CRTP>::mutex_type;
+
 public:
 	template<typename... Args>
 	lockable(Args&&... args): lockable_base<CRTP>(std::forward<Args>(args)...) {}
@@ -215,8 +266,29 @@ public:
 	lockable(lockable const& other): lockable_base<CRTP>(other) {}
 	lockable(lockable&& other): lockable_base<CRTP>(std::move(other)) {}
 
-	lockable& operator=(lockable const& other) { *static_cast<lockable_base<CRTP>*>(this) = other; }
-	lockable& operator=(lockable&& other) { *static_cast<lockable_base<CRTP>*>(this) = std::move(other); }
+	lockable& operator=(lockable const& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		lockable_base<CRTP>::copy_assign(other);
+		read_lockable<CRTP>::copy_assign(other);
+		write_lockable<CRTP>::copy_assign(other);
+		copy_assign(other);
+		return *this;
+	}
+
+	lockable& operator=(lockable&& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		lockable_base<CRTP>::move_assign(other);
+		read_lockable<CRTP>::move_assign(other);
+		write_lockable<CRTP>::move_assign(other);
+		move_assign(other);
+		return *this;
+	}
+
+protected:
+	void copy_assign(lockable const& other) {}
+	void move_assign(lockable& other) {}
 };
 
 template<typename CRTP>
