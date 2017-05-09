@@ -1,0 +1,289 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2017 Microsoft Corporation. All rights reserved.
+//
+// This code is licensed under the MIT License (MIT).
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#ifndef GSL_LOCKABLE_H
+#define GSL_LOCKABLE_H
+
+#include <mutex>
+#include <shared_mutex>
+#include <utility>
+
+#ifdef _MSC_VER
+#pragma warning(push)
+
+// turn off some warnings that are noisy about our Expects statements
+#pragma warning(disable : 4127) // conditional expression is constant
+
+// blanket turn off warnings from CppCoreCheck for now
+// so people aren't annoyed by them when running the tool.
+// more targeted suppressions will be added in a future update to the GSL
+#pragma warning(disable : 26481 26482 26483 26485 26490 26491 26492 26493 26495)
+#endif // _MSC_VER
+
+namespace gsl
+{
+
+
+template<typename CRTP>
+class readable_lockable;
+
+template<typename CRTP>
+class writable_lock;
+
+template<typename CRTP>
+class lockable_base
+{
+	friend class readable_lockable<CRTP>;
+	friend class writable_lock<CRTP>;
+
+public:
+	using mutex_type = std::shared_timed_mutex;
+	virtual ~lockable_base() = default;
+
+	template<typename... Args>
+	lockable_base(Args&&... args): crtp(std::forward<Args>(args)...) {}
+
+	template<typename T>
+	lockable_base(std::initializer_list<T> il): crtp(il) {}
+
+	lockable_base(lockable_base const& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		this->crtp = other.crtp;
+	}
+
+	lockable_base(lockable_base&& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		this->crtp = std::move(other.crtp);
+	}
+
+	lockable_base& operator=(lockable_base const& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		this->crtp = other.crtp;
+		return *this;
+	}
+
+	lockable_base& operator=(lockable_base&& other)
+	{
+		std::unique_lock<mutex_type> lock(other.mtx);
+		this->crtp = std::move(other.crtp);
+		return *this;
+	}
+
+protected:
+	mutable mutex_type mtx;
+	CRTP crtp;
+};
+
+template<typename CRTP>
+class read_lockable
+: public virtual lockable_base<CRTP>
+{
+	class readable_lock
+	{
+	public:
+		readable_lock(CRTP const& crtp, typename lockable_base<CRTP>::mutex_type& mtx)
+		: crtp(&crtp), lock(mtx) {}
+
+		readable_lock(CRTP const& crtp, typename lockable_base<CRTP>::mutex_type& mtx, std::defer_lock_t)
+		: crtp(&crtp), lock(mtx, std::defer_lock) {}
+
+		// it should be impossible for a readable_lock to exist without an associated
+		// locked mutex
+		readable_lock(readable_lock const& other)
+		: crtp(other.crtp), lock(other.lock.mtx) {}
+
+		readable_lock(readable_lock&& other)
+		: crtp(other.crtp), lock(std::move(other.lock)) {}
+
+		readable_lock& operator=(readable_lock const& other)
+		{
+			lock = std::shared_lock<typename lockable_base<CRTP>::mutex_type>(other.lock.mtx);
+			crtp = other.crtp;
+			return *this;
+		}
+
+		readable_lock& operator=(readable_lock&& other)
+		{
+			lock = std::move(other.lock);
+			crtp = other.crtp;
+			return *this;
+		}
+
+		CRTP const& operator*() const { return *crtp; }
+		CRTP const* operator->() const { return crtp; }
+
+		std::shared_lock<typename lockable_base<CRTP>::mutex_type>&
+		get_lock() { return lock; }
+
+	private:
+		CRTP const* crtp;
+		std::shared_lock<typename lockable_base<CRTP>::mutex_type> lock;
+	};
+
+public:
+	template<typename... Args>
+	read_lockable(Args&&... args): lockable_base<CRTP>(std::forward<Args>(args)...) {}
+
+	read_lockable(read_lockable const& other): lockable_base<CRTP>(other) {}
+	read_lockable(read_lockable&& other): lockable_base<CRTP>(std::move(other)) {}
+
+	read_lockable& operator=(read_lockable const& other) { *static_cast<lockable_base<CRTP>*>(this) = other; }
+	read_lockable& operator=(read_lockable&& other) { *static_cast<lockable_base<CRTP>*>(this) = std::move(other); }
+
+	readable_lock lock_for_reading() const
+	{
+		return readable_lock(lockable_base<CRTP>::crtp, lockable_base<CRTP>::mtx);
+	}
+
+	readable_lock lock_for_deferred_reading() const
+	{
+		return readable_lock(lockable_base<CRTP>::crtp, lockable_base<CRTP>::mtx, std::defer_lock);
+	}
+};
+
+template<typename CRTP>
+class write_lockable
+: public virtual lockable_base<CRTP>
+{
+	class writable_lock
+	{
+	public:
+		writable_lock(CRTP& crtp, typename lockable_base<CRTP>::mutex_type& mtx)
+		: crtp(&crtp), lock(mtx) {}
+
+		writable_lock(CRTP& crtp, typename lockable_base<CRTP>::mutex_type& mtx, std::defer_lock_t)
+		: crtp(&crtp), lock(mtx, std::defer_lock) {}
+
+		writable_lock(writable_lock const&) = delete;
+		writable_lock(writable_lock&& other): crtp(other.crtp), lock(std::move(other.lock)) {}
+
+		writable_lock& operator=(writable_lock const&) = delete;
+		writable_lock& operator=(writable_lock&& other)
+			{ lock = std::move(other.lock); crtp = other.crtp; return *this; }
+
+		CRTP& operator*() { return *crtp; }
+		CRTP* operator->() { return crtp; }
+
+		std::unique_lock<typename lockable_base<CRTP>::mutex_type>&
+		get_lock() { return lock; }
+
+	private:
+		CRTP* crtp;
+		std::unique_lock<typename lockable_base<CRTP>::mutex_type> lock;
+	};
+
+public:
+	template<typename... Args>
+	write_lockable(Args&&... args): lockable_base<CRTP>(std::forward<Args>(args)...) {}
+
+	write_lockable(write_lockable const& other): lockable_base<CRTP>(other) {}
+	write_lockable(write_lockable&& other): lockable_base<CRTP>(std::move(other)) {}
+
+	write_lockable& operator=(write_lockable const& other) { *static_cast<lockable_base<CRTP>*>(this) = other; }
+	write_lockable& operator=(write_lockable&& other) { *static_cast<lockable_base<CRTP>*>(this) = std::move(other); }
+
+	writable_lock lock_for_writing()
+	{
+		return writable_lock(lockable_base<CRTP>::crtp, lockable_base<CRTP>::mtx);
+	}
+
+	writable_lock lock_for_deferred_writing()
+	{
+		return writable_lock(lockable_base<CRTP>::crtp, lockable_base<CRTP>::mtx, std::defer_lock);
+	}
+};
+
+template<typename CRTP>
+class lockable
+: public read_lockable<CRTP>
+, public write_lockable<CRTP>
+{
+public:
+	template<typename... Args>
+	lockable(Args&&... args): lockable_base<CRTP>(std::forward<Args>(args)...) {}
+
+	lockable(lockable const& other): lockable_base<CRTP>(other) {}
+	lockable(lockable&& other): lockable_base<CRTP>(std::move(other)) {}
+
+	lockable& operator=(lockable const& other) { *static_cast<lockable_base<CRTP>*>(this) = other; }
+	lockable& operator=(lockable&& other) { *static_cast<lockable_base<CRTP>*>(this) = std::move(other); }
+};
+
+template<typename CRTP>
+class lockable_container
+: public read_lockable<CRTP>
+, public write_lockable<CRTP>
+{
+public:
+	template<typename... Args>
+	lockable_container(Args&&... args): lockable_base<CRTP>(std::forward<Args>(args)...) {}
+
+	template<typename T>
+	lockable_container(std::initializer_list<T> il): lockable_base<CRTP>(il) {}
+};
+
+namespace detail {
+
+template<typename Tuple, std::size_t... Is>
+void apply_multilock(Tuple& tp, std::index_sequence<Is...>)
+{
+	std::lock(std::get<Is>(tp).get_lock()...);
+}
+
+template<typename CRTP>
+struct for_reading_type
+{
+	lockable<CRTP> const& l;
+	for_reading_type(lockable<CRTP> const& l): l(l) {}
+	auto lock() { return l.lock_for_deferred_reading(); }
+};
+
+template<typename CRTP>
+struct for_writing_type
+{
+	lockable<CRTP>& l;
+	for_writing_type(lockable<CRTP>& l): l(l) {}
+	auto lock() { return l.lock_for_deferred_writing(); }
+};
+
+} // namespace detail
+
+template<typename CRTP>
+auto for_reading(lockable<CRTP> const& l) { return detail::for_reading_type<CRTP>(l); }
+
+template<typename CRTP>
+auto for_writing(lockable<CRTP>& l) { return detail::for_writing_type<CRTP>(l); }
+
+template<typename... Lockables>
+auto lock(Lockables&&... lockables)
+{
+	auto tp = std::make_tuple(std::forward<Lockables>(lockables).lock()...);
+	detail::apply_multilock(tp, std::make_index_sequence<sizeof...(Lockables)>{});
+	return tp;
+}
+
+} // namespace gsl
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
+
+#endif // GSL_LOCKABLE_H
