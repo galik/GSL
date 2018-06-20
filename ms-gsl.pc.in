@@ -1,0 +1,5 @@
+Name: Microsoft Guideline Support Library
+Description: Microsoft's Support Library for the CppCoreGuidelines
+Version: 1.0
+
+Cflags: -I${CMAKE_INSTALL_PREFIX}/include/microsoft/gsl-1.0

@@ -62,9 +62,16 @@ if(VS_ADD_NATIVE_VISUALIZERS)
     )
 endif()
 
+CONFIGURE_FILE("ms-gsl.pc.in" "ms-gsl.pc")
+
 install(
     DIRECTORY include/gsl
-    DESTINATION include
+    DESTINATION include/microsoft/gsl-1.0
+)
+
+install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/ms-gsl.pc 
+    DESTINATION share/pkgconfig
 )
 
 option(GSL_TEST "Generate tests." ${GSL_STANDALONE_PROJECT})
