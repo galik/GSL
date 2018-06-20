@@ -62,7 +62,7 @@ if(VS_ADD_NATIVE_VISUALIZERS)
     )
 endif()
 
-CONFIGURE_FILE("ms-gsl.pc.in" "ms-gsl.pc")
+CONFIGURE_FILE("ms-gsl-1.0.pc.in" "ms-gsl-1.0.pc")
 
 install(
     DIRECTORY include/gsl
@@ -70,7 +70,7 @@ install(
 )
 
 install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/ms-gsl.pc 
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/ms-gsl-1.0.pc 
     DESTINATION share/pkgconfig
 )
 
